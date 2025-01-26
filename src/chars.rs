@@ -5,41 +5,12 @@
 //!
 //! The full character set is `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~`.
 //!
-//! This module provides the [`CHARS`] constant, which contains the aforementioned characters, and
-//! the [`check`] function, which can be used to validate code verifiers (except for their length).
+//! This module provides the [`CHARS`] constant (along with the [`STRING`] constant), which contain
+//! the aforementioned characters, and the [`check`] function, which can be used to check
+//! code verifiers for validity (except for their length).
 
 use miette::Diagnostic;
 use thiserror::Error;
-
-macro_rules! upper_letters {
-    () => {
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    };
-}
-
-macro_rules! lower_letters {
-    () => {
-        "abcdefghijklmnopqrstuvwxyz"
-    };
-}
-
-macro_rules! letters {
-    () => {
-        concat!(upper_letters!(), lower_letters!())
-    };
-}
-
-macro_rules! digits {
-    () => {
-        "0123456789"
-    };
-}
-
-macro_rules! special {
-    () => {
-        "-._~"
-    };
-}
 
 macro_rules! special_pattern {
     () => {
@@ -47,14 +18,28 @@ macro_rules! special_pattern {
     };
 }
 
-macro_rules! chars {
-    () => {
-        concat!(letters!(), digits!(), special!())
-    };
-}
+/// The amount of valid characters in PKCE code verifiers.
+pub const LENGTH: usize = 66;
 
 /// The characters used in PKCE code verifiers.
-pub const CHARS: &str = chars!();
+#[rustfmt::skip]
+pub const CHARS: [char; LENGTH] = [
+    // upper
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+    'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+    'U', 'V', 'W', 'X', 'Y', 'Z',
+    // lower
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+    'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+    'u', 'v', 'w', 'x', 'y', 'z',
+    // digits
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    // special
+    '-', '.', '_', '~',
+];
+
+/// The string representation of [`CHARS`].
+pub const STRING: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
 
 /// Represents errors that can occur when invalid characters are encountered.
 #[derive(Debug, Error, Diagnostic)]
@@ -82,9 +67,9 @@ pub const fn is_special(character: char) -> bool {
 /// # Examples
 ///
 /// ```
-/// use pkce_std::chars::{CHARS, is_valid};
+/// use pkce_std::chars::{is_valid, STRING};
 ///
-/// assert!(CHARS.chars().all(is_valid));
+/// assert!(STRING.chars().all(is_valid));
 /// ```
 pub const fn is_valid(character: char) -> bool {
     character.is_ascii_alphanumeric() || is_special(character)
@@ -122,12 +107,21 @@ pub fn check<S: AsRef<str>>(string: S) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_valid, CHARS};
+    use super::{is_valid, CHARS, STRING};
+
+    fn is_valid_chars(character: char) -> bool {
+        CHARS.contains(&character)
+    }
+
+    fn is_valid_string(character: char) -> bool {
+        STRING.contains(character)
+    }
 
     #[test]
-    fn range() {
+    fn consistency() {
         for character in char::MIN..=char::MAX {
-            assert_eq!(CHARS.contains(character), is_valid(character));
+            assert_eq!(is_valid_chars(character), is_valid(character));
+            assert_eq!(is_valid_string(character), is_valid(character));
         }
     }
 }

@@ -45,7 +45,7 @@ impl Challenge {
         self.method
     }
 
-    /// Consumes [`Self`] and returns its parts.
+    /// Consumes [`Self`] and returns its `(secret, method)` parts.
     pub fn into_parts(self) -> Parts {
         (self.secret, self.method)
     }
@@ -64,8 +64,8 @@ impl Challenge {
 }
 
 impl Challenge {
-    /// Creates code challenges from the given `verifier` with the given `method`.
-    pub fn create(verifier: &Verifier<'_>, method: Method) -> Self {
+    /// Creates code challenges from the given verifier using the given method.
+    pub fn create_using(method: Method, verifier: &Verifier<'_>) -> Self {
         let string = verifier.as_str();
 
         let secret = match method {
@@ -76,8 +76,8 @@ impl Challenge {
         Self::new(secret, method)
     }
 
-    /// Creates code challenges from the given `verifier` with the default method.
-    pub fn create_default(verifier: &Verifier<'_>) -> Self {
-        Self::create(verifier, Method::default())
+    /// Creates code challenges from the given verifier using the default method.
+    pub fn create(verifier: &Verifier<'_>) -> Self {
+        Self::create_using(Method::default(), verifier)
     }
 }

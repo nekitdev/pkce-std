@@ -184,28 +184,38 @@ impl Verifier<'_> {
         unsafe { Self::owned_unchecked(generate::string(length)) }
     }
 
+    /// Generates random [`Self`] with default length.
+    pub fn generate_default() -> Self {
+        Self::generate(Length::default())
+    }
+
     /// Generates `count` random bytes length and encodes them into [`Self`].
     pub fn generate_encode(count: Bytes) -> Self {
         // SAFETY: `generate::bytes(count)` creates valid values for `Self::encode_unchecked`,
         // meaning that their length is exactly `count`.
         unsafe { Self::encode_unchecked(generate::bytes(count)) }
     }
+
+    /// Generates random bytes of default length and encodes them into [`Self`].
+    pub fn generate_encode_default() -> Self {
+        Self::generate_encode(Bytes::default())
+    }
 }
 
 impl Verifier<'_> {
     /// Computes the [`Challenge`] of [`Self`] with the given [`Method`].
-    pub fn challenge(&self, method: Method) -> Challenge {
-        Challenge::create(self, method)
+    pub fn challenge_using(&self, method: Method) -> Challenge {
+        Challenge::create_using(method, self)
     }
 
     /// Computes the [`Challenge`] of [`Self`] with the default [`Method`].
-    pub fn challenge_default(&self) -> Challenge {
-        self.challenge(Method::default())
+    pub fn challenge(&self) -> Challenge {
+        self.challenge_using(Method::default())
     }
 
     /// Verifies the given [`Challenge`] against [`Self`].
     pub fn verify(&self, challenge: &Challenge) -> bool {
-        let expected = self.challenge(challenge.method());
+        let expected = self.challenge_using(challenge.method());
 
         challenge == &expected
     }
@@ -331,5 +341,13 @@ impl Verifier<'_> {
     }
 }
 
-/// Represents owned PKCE code verifiers.
+/// Represents owned [`Verifier`] values.
 pub type Owned = Verifier<'static>;
+
+impl Verifier<'_> {
+    /// Consumes [`Self`] and returns [`Owned`] (enforces the contained value to be owned).
+    pub fn into_owned(self) -> Owned {
+        // SAFETY: `self` is valid, therefore we do not need to check again
+        unsafe { Owned::owned_unchecked(self.get().into_owned()) }
+    }
+}

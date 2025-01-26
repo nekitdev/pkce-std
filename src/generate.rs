@@ -11,15 +11,15 @@
 use rand::{distributions::Uniform, thread_rng, Rng, RngCore};
 
 use crate::{
-    chars::CHARS,
+    chars::{CHARS, LENGTH},
     length::{Bytes, Length},
 };
 
-/// Generates `length` random bytes.
-pub fn bytes(length: Bytes) -> Vec<u8> {
+/// Generates `count` random bytes.
+pub fn bytes(count: Bytes) -> Vec<u8> {
     let mut rng = thread_rng();
 
-    let mut data = vec![0; length.get()];
+    let mut data = vec![0; count.get()];
 
     rng.fill_bytes(&mut data);
 
@@ -28,25 +28,11 @@ pub fn bytes(length: Bytes) -> Vec<u8> {
 
 /// Generates random strings of `length` characters from the [`CHARS`] set.
 pub fn string(length: Length) -> String {
-    let chars: Vec<_> = CHARS.chars().collect();
-
-    let distribution = Uniform::new(0, chars.len());
+    let distribution = Uniform::new(0, LENGTH);
 
     thread_rng()
         .sample_iter(&distribution)
         .take(length.get())
-        .map(|index| chars[index])
+        .map(|index| CHARS[index])
         .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{chars::check, length::Length};
-
-    use super::string;
-
-    #[test]
-    fn string_passes() {
-        check(string(Length::default())).unwrap()
-    }
 }

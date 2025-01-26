@@ -11,11 +11,11 @@
 //! ```
 //! use pkce_std::method::Method;
 //!
-//! let string = "plain";
+//! let string = "S256";
 //!
 //! let method: Method = string.parse().unwrap();
 //!
-//! assert_eq!(method, Method::Plain);
+//! assert_eq!(method, Method::Sha256);
 //! ```
 
 use std::str::FromStr;

@@ -215,7 +215,7 @@ impl ParseError {
     }
 }
 
-/// Represents bytes lengths.
+/// Represents lengths in bytes.
 ///
 /// Refer to the [module] documentation for more information.
 ///
@@ -270,7 +270,7 @@ impl TryFrom<usize> for Bytes {
 
 impl From<Bytes> for usize {
     fn from(bytes: Bytes) -> Self {
-        bytes.value
+        bytes.get()
     }
 }
 
@@ -284,7 +284,7 @@ impl TryFrom<usize> for Length {
 
 impl From<Length> for usize {
     fn from(length: Length) -> Self {
-        length.value
+        length.get()
     }
 }
 
