@@ -57,7 +57,7 @@ impl From<Challenge> for Parts {
     }
 }
 
-impl<'c> Challenge {
+impl Challenge {
     fn new(secret: String, method: Method) -> Self {
         Self { secret, method }
     }

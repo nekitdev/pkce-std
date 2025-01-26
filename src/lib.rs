@@ -2,7 +2,7 @@
 //!
 //! PKCE specification is defined in [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636).
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 pub mod challenge;
 pub mod chars;
