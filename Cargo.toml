@@ -1,0 +1,41 @@
+[package]
+name = "pkce-std"
+version = "0.0.0"
+authors = ["nekitdev <nekit@nekit.dev>"]
+edition = "2021"
+description = "Handling Proof Key for Code Exchange values."
+documentation = "https://docs.rs/pkce-std"
+readme = "README.md"
+repository = "https://github.com/nekitdev/pkce-std"
+license = "MIT"
+keywords = ["pkce", "oauth", "security"]
+categories = ["cryptography"]
+
+[dependencies.base64]
+version = "0.22.1"
+
+[dependencies.bon]
+version = "3.3.2"
+
+[dependencies.constant_time_eq]
+version = "0.3.1"
+
+[dependencies.miette]
+version = "7.4.0"
+
+[dependencies.rand]
+version = "0.8.5"
+
+[dependencies.serde]
+version = "1.0.217"
+features = ["derive"]
+optional = true
+
+[dependencies.sha2]
+version = "0.10.8"
+
+[dependencies.thiserror]
+version = "2.0.11"
+
+[features]
+default = ["serde"]
