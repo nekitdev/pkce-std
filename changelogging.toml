@@ -1,0 +1,8 @@
+[context]
+name = "pkce-std"
+version = "0.1.0"
+url = "https://github.com/nekitdev/pkce-std"
+
+[formats]
+title = "[{{version}}]({{url}}/tree/v{{version}}) ({{date}})"
+fragment = "{{content}} ([#{{id}}]({{url}}/pull/{{id}}))"

@@ -1,15 +1,15 @@
 [package]
 name = "pkce-std"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["nekitdev <nekit@nekit.dev>"]
 edition = "2021"
-description = "Handling Proof Key for Code Exchange values."
+description = "Handling Proof Key for Code Exchange."
 documentation = "https://docs.rs/pkce-std"
 readme = "README.md"
 repository = "https://github.com/nekitdev/pkce-std"
 license = "MIT"
 keywords = ["pkce", "oauth", "security"]
-categories = ["cryptography"]
+categories = ["cryptography", "web-programming"]
 
 [dependencies.base64]
 version = "0.22.1"
