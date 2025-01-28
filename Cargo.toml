@@ -33,6 +33,3 @@ version = "0.10.8"
 
 [dependencies.thiserror]
 version = "2.0.11"
-
-[features]
-default = ["serde"]
