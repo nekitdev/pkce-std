@@ -8,7 +8,7 @@
 //!
 //! [`length`]: crate::length
 
-use rand::{distributions::Uniform, thread_rng, Rng, RngCore};
+use rand::{distr::Uniform, rng, Rng, RngCore};
 
 use crate::{
     chars::{CHARS, LENGTH},
@@ -17,21 +17,32 @@ use crate::{
 
 /// Generates `count` random bytes.
 pub fn bytes(count: Bytes) -> Vec<u8> {
-    let mut rng = thread_rng();
-
     let mut data = vec![0; count.get()];
 
-    rng.fill_bytes(&mut data);
+    rng().fill_bytes(&mut data);
 
     data
 }
 
 /// Generates random strings of `length` characters from the [`CHARS`] set.
+///
+/// # Panics
+///
+/// This function will not panic, as detailed below.
+///
+/// ## Distribution
+///
+/// The uniform distribution is created with constantly checked [`LENGTH`] being non-zero.
+///
+/// ## Bounds
+///
+/// [`CHARS`] is the array containing exactly [`LENGTH`] characters. Since the uniform range
+/// is exclusive, the sampled index will always be in the bounds of the array.
 pub fn string(length: Length) -> String {
-    let distribution = Uniform::new(0, LENGTH);
+    let distribution = Uniform::new(0, LENGTH).unwrap();
 
-    thread_rng()
-        .sample_iter(&distribution)
+    rng()
+        .sample_iter(distribution)
         .take(length.get())
         .map(|index| CHARS[index])
         .collect()

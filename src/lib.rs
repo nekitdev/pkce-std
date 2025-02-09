@@ -106,6 +106,7 @@ pub mod generate;
 pub mod hash;
 pub mod int;
 pub mod length;
+pub mod macros;
 pub mod method;
 pub mod verifier;
 

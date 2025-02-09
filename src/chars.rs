@@ -12,6 +12,8 @@
 use miette::Diagnostic;
 use thiserror::Error;
 
+use crate::macros::const_assert;
+
 macro_rules! special_pattern {
     () => {
         '-' | '.' | '_' | '~'
@@ -20,6 +22,9 @@ macro_rules! special_pattern {
 
 /// The amount of valid characters in PKCE code verifiers.
 pub const LENGTH: usize = 66;
+
+// constantly assert that the length is non-zero (required for `generate::string` to be safe)
+const_assert!(LENGTH > 0);
 
 /// The characters used in PKCE code verifiers.
 #[rustfmt::skip]
@@ -32,7 +37,7 @@ pub const CHARS: [char; LENGTH] = [
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
     'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
     'u', 'v', 'w', 'x', 'y', 'z',
-    // digits
+    // digit
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
     // special
     '-', '.', '_', '~',
