@@ -45,7 +45,7 @@ pub struct Code<'c> {
 }
 
 impl<'c> Code<'c> {
-    fn new(verifier: Verifier<'c>, challenge: Challenge) -> Self {
+    const fn new(verifier: Verifier<'c>, challenge: Challenge) -> Self {
         Self {
             verifier,
             challenge,

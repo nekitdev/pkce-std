@@ -36,7 +36,7 @@ use std::{fmt, num::ParseIntError, str::FromStr};
 use miette::Diagnostic;
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use thiserror::Error;
 
@@ -118,7 +118,7 @@ pub struct ParseBytesError {
 
 impl ParseBytesError {
     /// Constructs [`Self`].
-    pub fn new(source: ParseBytesErrorSource, string: String) -> Self {
+    pub const fn new(source: ParseBytesErrorSource, string: String) -> Self {
         Self { source, string }
     }
 
@@ -195,7 +195,7 @@ pub struct ParseError {
 
 impl ParseError {
     /// Constructs [`Self`].
-    pub fn new(source: ParseErrorSource, string: String) -> Self {
+    pub const fn new(source: ParseErrorSource, string: String) -> Self {
         Self { source, string }
     }
 
@@ -232,8 +232,6 @@ impl ParseError {
 ///
 /// [module]: self
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(try_from = "usize", into = "usize"))]
 pub struct Bytes {
     value: usize,
 }
@@ -254,10 +252,24 @@ pub struct Bytes {
 ///
 /// [module]: self
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(try_from = "usize", into = "usize"))]
 pub struct Length {
     value: usize,
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for Bytes {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.get().serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Bytes {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = usize::deserialize(deserializer)?;
+
+        Self::new(value).map_err(de::Error::custom)
+    }
 }
 
 impl TryFrom<usize> for Bytes {
@@ -271,6 +283,22 @@ impl TryFrom<usize> for Bytes {
 impl From<Bytes> for usize {
     fn from(bytes: Bytes) -> Self {
         bytes.get()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for Length {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.get().serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Length {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = usize::deserialize(deserializer)?;
+
+        Self::new(value).map_err(de::Error::custom)
     }
 }
 

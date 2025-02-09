@@ -30,7 +30,7 @@ pub type Parts = (String, Method);
 
 impl fmt::Display for Challenge {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.secret.fmt(formatter)
+        self.secret().fmt(formatter)
     }
 }
 
@@ -41,7 +41,7 @@ impl Challenge {
     }
 
     /// Returns the method used to generate the challenge.
-    pub fn method(&self) -> Method {
+    pub const fn method(&self) -> Method {
         self.method
     }
 
@@ -58,7 +58,7 @@ impl From<Challenge> for Parts {
 }
 
 impl Challenge {
-    fn new(secret: String, method: Method) -> Self {
+    const fn new(secret: String, method: Method) -> Self {
         Self { secret, method }
     }
 }

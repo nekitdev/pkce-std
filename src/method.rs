@@ -38,7 +38,7 @@ pub struct Error {
 
 impl Error {
     /// Constructs [`Self`].
-    pub fn new(unknown: String) -> Self {
+    pub const fn new(unknown: String) -> Self {
         Self { unknown }
     }
 }
