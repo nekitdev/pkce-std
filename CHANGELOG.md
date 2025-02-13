@@ -2,6 +2,10 @@
 
 <!-- changelogging: start -->
 
+## [0.1.2](https://github.com/nekitdev/pkce-std/tree/v0.1.2) (2025-02-13)
+
+No significant changes.
+
 ## [0.1.1](https://github.com/nekitdev/pkce-std/tree/v0.1.1) (2025-02-09)
 
 ### Changes
