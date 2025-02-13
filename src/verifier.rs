@@ -1,6 +1,6 @@
 //! PKCE code verifiers.
 //!
-//! The [`Verifier<'v>`] type represents PKCE code verifiers, which are strings
+//! The [`Verifier<'_>`] type represents PKCE code verifiers, which are strings
 //! that consist of valid characters (see [`chars`]) and have certain lengths
 //! (see [`length`]).
 //!
@@ -32,7 +32,7 @@
 //! assert_ne!(verifier, other);
 //! ```
 //!
-//! [`Verifier<'v>`]: Verifier
+//! [`Verifier<'_>`]: Verifier
 
 use std::{
     borrow::Cow,

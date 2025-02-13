@@ -1,6 +1,6 @@
 [package]
 name = "pkce-std"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["nekitdev <nekit@nekit.dev>"]
 edition = "2021"
 description = "Handling Proof Key for Code Exchange."
@@ -13,6 +13,9 @@ categories = ["cryptography", "web-programming"]
 
 [dependencies.base64]
 version = "0.22.1"
+
+[dependencies.const-macros]
+version = "0.1.1"
 
 [dependencies.constant_time_eq]
 version = "0.3.1"

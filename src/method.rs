@@ -27,6 +27,8 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use thiserror::Error;
 
+use crate::macros::errors;
+
 /// Represents errors that can occur when parsing PKCE methods.
 #[derive(Debug, Error, Diagnostic)]
 #[error("unknown method `{unknown}`")]
@@ -60,9 +62,6 @@ pub enum Method {
 }
 
 #[cfg(feature = "serde")]
-type Slice<'s> = &'s str;
-
-#[cfg(feature = "serde")]
 impl Serialize for Method {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.static_str().serialize(serializer)
@@ -72,9 +71,9 @@ impl Serialize for Method {
 #[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for Method {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let slice: Slice<'_> = Slice::deserialize(deserializer)?;
+        let string = <&str>::deserialize(deserializer)?;
 
-        slice.parse().map_err(de::Error::custom)
+        string.parse().map_err(de::Error::custom)
     }
 }
 
@@ -88,6 +87,12 @@ impl Method {
     }
 }
 
+errors! {
+    Type = Error,
+    Hack = $,
+    error => new(string => to_owned),
+}
+
 impl FromStr for Method {
     type Err = Error;
 
@@ -95,7 +100,7 @@ impl FromStr for Method {
         match string {
             PLAIN => Ok(Self::Plain),
             SHA256 => Ok(Self::Sha256),
-            _ => Err(Error::new(string.to_owned())),
+            _ => Err(error!(string)),
         }
     }
 }

@@ -9,10 +9,10 @@
 //! the aforementioned characters, and the [`check`] function, which can be used to check
 //! code verifiers for validity (except for their length).
 
+use const_macros::const_assert;
+
 use miette::Diagnostic;
 use thiserror::Error;
-
-use crate::macros::const_assert;
 
 macro_rules! special_pattern {
     () => {

@@ -37,7 +37,7 @@ impl fmt::Display for Challenge {
 impl Challenge {
     /// Returns the borrowed secret.
     pub fn secret(&self) -> &str {
-        &self.secret
+        self.secret.as_str()
     }
 
     /// Returns the method used to generate the challenge.

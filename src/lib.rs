@@ -96,7 +96,7 @@
 //! let valid = verifier.verify(&challenge);
 //! ```
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 pub mod challenge;
 pub mod chars;

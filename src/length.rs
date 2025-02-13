@@ -31,8 +31,9 @@
 //! assert_eq!(length.get(), 86);
 //! ```
 
-use std::{fmt, num::ParseIntError, str::FromStr};
+use std::{fmt, str::FromStr};
 
+use const_macros::{const_early, const_ok, const_try};
 use miette::Diagnostic;
 
 #[cfg(feature = "serde")]
@@ -40,7 +41,7 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use thiserror::Error;
 
-use crate::{encoding, int};
+use crate::{encoding, int, macros::errors};
 
 /// The minimum bytes length.
 pub const MIN_BYTES: usize = 32;
@@ -131,11 +132,6 @@ impl ParseBytesError {
     pub fn int(error: int::ParseError, string: String) -> Self {
         Self::new(error.into(), string)
     }
-
-    /// Constructs [`int::ParseError`] from [`ParseIntError`] and constructs [`Self`] from it.
-    pub fn new_int(error: ParseIntError, string: String) -> Self {
-        Self::int(error.into(), string)
-    }
 }
 
 /// Represents errors that can occur when constructing [`Length`] values.
@@ -207,11 +203,6 @@ impl ParseError {
     /// Constructs [`Self`] from [`int::ParseError`].
     pub fn int(error: int::ParseError, string: String) -> Self {
         Self::new(error.into(), string)
-    }
-
-    /// Constructs [`int::ParseError`] from [`ParseIntError`] and constructs [`Self`] from it.
-    pub fn new_int(error: ParseIntError, string: String) -> Self {
-        Self::int(error.into(), string)
     }
 }
 
@@ -340,16 +331,30 @@ impl Default for Length {
     }
 }
 
+errors! {
+    Type = ParseBytesError,
+    Hack = $,
+    parse_bytes_error => bytes(error, string => to_owned),
+    parse_bytes_int_error => int(error, string => to_owned),
+}
+
 impl FromStr for Bytes {
     type Err = ParseBytesError;
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         let value = string
             .parse()
-            .map_err(|error| Self::Err::new_int(error, string.to_owned()))?;
+            .map_err(|error| parse_bytes_int_error!(int::wrap(error), string))?;
 
-        Self::new(value).map_err(|error| Self::Err::bytes(error, string.to_owned()))
+        Self::new(value).map_err(|error| parse_bytes_error!(error, string))
     }
+}
+
+errors! {
+    Type = ParseError,
+    Hack = $,
+    parse_error => length(error, string => to_owned),
+    parse_int_error => int(error, string => to_owned),
 }
 
 impl FromStr for Length {
@@ -358,10 +363,16 @@ impl FromStr for Length {
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         let value = string
             .parse()
-            .map_err(|error| Self::Err::new_int(error, string.to_owned()))?;
+            .map_err(|error| parse_int_error!(int::wrap(error), string))?;
 
-        Self::new(value).map_err(|error| Self::Err::length(error, string.to_owned()))
+        Self::new(value).map_err(|error| parse_error!(error, string))
     }
+}
+
+errors! {
+    Type = BytesError,
+    Hack = $,
+    bytes_error => new(value),
 }
 
 impl Bytes {
@@ -369,15 +380,33 @@ impl Bytes {
     ///
     /// # Errors
     ///
+    /// See [`check`] for more information.
+    ///
+    /// [`check`]: Self::check
+    pub const fn new(value: usize) -> Result<Self, BytesError> {
+        const_try!(Self::check(value));
+
+        // SAFETY: `value` is in the valid range for `Self`
+        Ok(unsafe { Self::new_unchecked(value) })
+    }
+
+    /// Similar to [`new`], but the error is discarded.
+    ///
+    /// [`new`]: Self::new
+    pub const fn new_ok(value: usize) -> Option<Self> {
+        const_ok!(Self::new(value))
+    }
+
+    /// Checks whether the given value is in the valid range for [`Self`].
+    ///
+    /// # Errors
+    ///
     /// [`BytesError`] is returned if the value is less than [`MIN_BYTES`]
     /// or greater than [`MAX_BYTES`].
-    pub const fn new(value: usize) -> Result<Self, BytesError> {
-        if value < MIN_BYTES || value > MAX_BYTES {
-            Err(BytesError::new(value))
-        } else {
-            // SAFETY: `value` is in the valid range for `Self`
-            Ok(unsafe { Self::new_unchecked(value) })
-        }
+    pub const fn check(value: usize) -> Result<(), BytesError> {
+        const_early!(value < MIN_BYTES || value > MAX_BYTES => bytes_error!(value));
+
+        Ok(())
     }
 
     /// Constructs [`Self`] without checking the value.
@@ -387,19 +416,6 @@ impl Bytes {
     /// The caller must ensure that the value is in the valid range for [`Self`].
     pub const unsafe fn new_unchecked(value: usize) -> Self {
         Self { value }
-    }
-
-    /// Checks whether the given value is in the valid range for [`Self`].
-    ///
-    /// This function simply calls [`Self::new`], propagating errors and discarding the result.
-    ///
-    /// # Errors
-    ///
-    /// See [`Self::new`] for more information.
-    pub fn check(value: usize) -> Result<(), BytesError> {
-        let _ = Self::new(value)?;
-
-        Ok(())
     }
 
     /// Consumes [`Self`] and returns the contained value.
@@ -432,19 +448,43 @@ impl From<Bytes> for Length {
     }
 }
 
+errors! {
+    Type = Error,
+    Hack = $,
+    error => new(value),
+}
+
 impl Length {
     /// Constructs [`Self`] if the provided value is in the valid range.
     ///
     /// # Errors
     ///
-    /// [`struct@Error`] is returned if the value is less than [`MIN`] or greater than [`MAX`].
+    /// See [`check`] for more information.
+    ///
+    /// [`check`]: Self::check
     pub const fn new(value: usize) -> Result<Self, Error> {
-        if value < MIN || value > MAX {
-            Err(Error::new(value))
-        } else {
-            // SAFETY: `value` is in the valid range for `Self`
-            Ok(unsafe { Self::new_unchecked(value) })
-        }
+        const_try!(Self::check(value));
+
+        // SAFETY: `value` is in the valid range for `Self`
+        Ok(unsafe { Self::new_unchecked(value) })
+    }
+
+    /// Similar to [`new`], but the error is discarded.
+    ///
+    /// [`new`]: Self::new
+    pub const fn new_ok(value: usize) -> Option<Self> {
+        const_ok!(Self::new(value))
+    }
+
+    /// Checks whether the given value is in the valid range for [`Self`].
+    ///
+    /// # Errors
+    ///
+    /// [`struct@Error`] is returned if the value is less than [`MIN`] or greater than [`MAX`].
+    pub const fn check(value: usize) -> Result<(), Error> {
+        const_early!(value < MIN || value > MAX => error!(value));
+
+        Ok(())
     }
 
     /// Constructs [`Self`] without checking the value.
@@ -456,33 +496,17 @@ impl Length {
         Self { value }
     }
 
-    /// Checks whether the given value is in the valid range for [`Self`].
-    ///
-    /// This function simply calls [`Self::new`], propagating errors and discarding the result.
-    ///
-    /// # Errors
-    ///
-    /// See [`Self::new`] for more information.
-    pub fn check(value: usize) -> Result<(), Error> {
-        let _ = Self::new(value)?;
-
-        Ok(())
-    }
-
     /// Consumes [`Self`] and returns the contained value.
     pub const fn get(self) -> usize {
         self.value
     }
 
     /// The minimum value of [`Self`].
-    // SAFETY: `MIN` is the smallest valid value for `Self`
-    pub const MIN: Self = unsafe { Self::new_unchecked(MIN) };
+    pub const MIN: Self = Self::new_ok(MIN).unwrap();
 
     /// The default value of [`Self`].
-    // SAFETY: `DEFAULT` is in between `MIN` and `MAX`, therefore it is valid
-    pub const DEFAULT: Self = unsafe { Self::new_unchecked(DEFAULT) };
+    pub const DEFAULT: Self = Self::new_ok(DEFAULT).unwrap();
 
     /// The maximum value of [`Self`].
-    // SAFETY: `MAX` is the largest valid value for `Self`
-    pub const MAX: Self = unsafe { Self::new_unchecked(MAX) };
+    pub const MAX: Self = Self::new_ok(MAX).unwrap();
 }

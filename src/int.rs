@@ -13,3 +13,8 @@ use thiserror::Error;
 #[error("failed to parse integer")]
 #[diagnostic(code(pkce_std::int::parse), help("ensure the input is valid"))]
 pub struct ParseError(#[from] pub ParseIntError);
+
+/// Wraps [`ParseIntError`] into [`ParseError`].
+pub const fn wrap(error: ParseIntError) -> ParseError {
+    ParseError(error)
+}

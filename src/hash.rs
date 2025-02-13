@@ -3,7 +3,7 @@
 use sha2::{Digest, Sha256};
 
 /// The number of bits in one byte.
-pub const BYTE_BITS: usize = 8;
+pub const BYTE_BITS: usize = u8::BITS as usize;
 
 /// The number of bits in the hash.
 pub const BITS: usize = 256;
