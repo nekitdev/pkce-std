@@ -15,7 +15,7 @@ categories = ["cryptography", "web-programming"]
 version = "0.22.1"
 
 [dependencies.const-macros]
-version = "0.1.1"
+version = "0.3.0"
 
 [dependencies.constant_time_eq]
 version = "0.4.0"
