@@ -1,6 +1,6 @@
 [package]
 name = "pkce-std"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["nekitdev <nekit@nekit.dev>"]
 edition = "2024"
 description = "Handling Proof Key for Code Exchange."
@@ -50,5 +50,5 @@ serde = ["dep:serde"]
 unsafe-assert = []
 
 [package.metadata.docs.rs]
-features = ["serde"]
+features = ["serde", "static"]
 rustdoc-args = ["--cfg", "docsrs"]

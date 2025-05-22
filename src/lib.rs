@@ -97,7 +97,7 @@
 //! ```
 
 #![deny(missing_docs)]
-#![cfg_attr(docsrs, feature(auto_doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 pub mod challenge;
 pub mod check;

@@ -9,6 +9,8 @@
 - The architecture was significantly changed.
   Please refer to the [docs](https://docs.rs/pkce-std) for more information.
 
+- There are no features enabled by default anymore.
+
 ## [0.1.3](https://github.com/nekitdev/pkce-std/tree/v0.1.3) (2025-02-26)
 
 No significant changes.
