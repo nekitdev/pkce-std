@@ -21,7 +21,7 @@ use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine};
 
 /// Encodes given data into Base64.
 ///
-/// This function use the URL-safe and no-padding variant of Base64.
+/// This function uses the URL-safe and no-padding variant of Base64.
 ///
 /// # Examples
 ///

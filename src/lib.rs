@@ -100,20 +100,21 @@
 #![cfg_attr(docsrs, feature(auto_doc_cfg))]
 
 pub mod challenge;
-pub mod chars;
+pub mod check;
 pub mod code;
+pub mod count;
 pub mod encoding;
 pub mod generate;
 pub mod hash;
-pub mod int;
 pub mod length;
-pub mod macros;
 pub mod method;
+
+#[macro_use]
 pub mod verifier;
 
 pub use challenge::Challenge;
-pub use chars::CHARS;
 pub use code::{Code, Pair};
-pub use length::{Bytes, Length};
+pub use count::Count;
+pub use length::Length;
 pub use method::Method;
 pub use verifier::Verifier;

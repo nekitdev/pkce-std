@@ -1,17 +1,31 @@
-//! PKCE code verifier lengths.
+//! PKCE code verifier bytes count.
 //!
 //! As per the [standard](https://datatracker.ietf.org/doc/html/rfc7636#section-4.1), the length
 //! of the code verifier must be at least `43` and at most `128`.
 //!
-//! This module provides the [`Length`] type, representing the actual length of the code verifier.
+//! The core idea is that `43` and `128` correspond to Base64-encoded lengths of `32` and `96` bytes
+//! respectively (padding is not used).
 //!
-//! The [`Length`] type internally stores [`usize`] values, which are guaranteed to be in the range
+//! This module provides the [`Count`] type, which represents the number of bytes before
+//! encoding and effectively creating the code verifier.
+//!
+//! [`Count`] can be converted to [`Length`], but not vice versa.
+//!
+//! The type internally stores [`usize`] values, which are guaranteed to be in the range
 //! from [`MIN`] to [`MAX`] inclusively, defaulting to [`DEFAULT`].
 //!
-//! ```
-//! use pkce_std::length::Length;
+//! # Example
 //!
-//! let length = Length::new(128);
+//! Converting from [`Count`] to [`Length`] value:
+//!
+//! ```
+//! use pkce_std::{count::Count, length::Length};
+//!
+//! let count = Count::default();
+//!
+//! let length: Length = count.into();
+//!
+//! assert_eq!(count.encoded(), length.get());
 //! ```
 
 use std::{fmt, num::ParseIntError, str::FromStr};
@@ -26,53 +40,45 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 use thiserror::Error;
 
-use crate::{count, encoding};
+use crate::{encoding, length::Length};
 
-/// The minimum length.
-pub const MIN: usize = encoding::length(count::MIN);
+/// The minimum count.
+pub const MIN: usize = 32;
 
-/// The default length.
-pub const DEFAULT: usize = encoding::length(count::DEFAULT);
+/// The default count.
+pub const DEFAULT: usize = 64;
 
-/// The maximum length.
-pub const MAX: usize = encoding::length(count::MAX);
+/// The maximum count.
+pub const MAX: usize = 96;
 
-/// Represents errors that can occur when constructing [`Length`] values.
+/// Represents errors that can occur when constructing [`Count`] values.
 ///
 /// This error is returned when the given value is less than [`MIN`] or greater than [`MAX`].
 #[derive(Debug, Error)]
-#[error("expected length in `[{MIN}, {MAX}]` range, got `{value}`")]
-#[cfg_attr(
-    feature = "diagnostics",
-    derive(Diagnostic),
-    diagnostic(
-        code(pkce_std::length),
-        help("make sure the length is at least `{MIN}` and at most `{MAX}`")
-    )
-)]
+#[error("unexpected count `{value}`; expected in range `[{MIN}, {MAX}]`")]
 pub struct Error {
-    /// The invalid value.
+    /// The unexpected value.
     pub value: usize,
 }
 
 impl Error {
-    /// Constructs [`Self`].
+    /// Constructs [`Self`]
     pub const fn new(value: usize) -> Self {
         Self { value }
     }
 }
 
-/// Represents sources of errors that can occur when parsing [`Length`] values.
+/// Represents sources of errors that can occur when parsing [`Count`] values.
 #[derive(Debug, Error)]
 #[cfg_attr(feature = "diagnostics", derive(Diagnostic))]
 pub enum ParseError {
-    /// Invalid length error.
-    #[error("invalid length")]
+    /// Invalid count error.
+    #[error("invalid count")]
     #[cfg_attr(
         feature = "diagnostics",
         diagnostic(
-            code(pkce_std::length::parse),
-            help("make sure the length is in the valid range")
+            code(pkce_std::count::parse),
+            help("make sure the count is in the valid range")
         )
     )]
     Length(#[from] Error),
@@ -80,60 +86,40 @@ pub enum ParseError {
     #[error("parse integer error")]
     #[cfg_attr(
         feature = "diagnostics",
-        diagnostic(code(pkce_std::length::parse::int), help("check the string"))
+        diagnostic(code(pkce_std::count::parse::int), help("check the string"))
     )]
     Int(#[from] ParseIntError),
 }
 
-/// Represents lengths.
+/// Represents byte counts.
 ///
 /// Refer to the [module] documentation for more information.
 ///
 /// # Examples
 ///
 /// ```
-/// use pkce_std::length::Length;
+/// use pkce_std::count::Count;
 ///
-/// let length = Length::new(69).unwrap();
+/// let count = Count::new(64).unwrap();
 ///
-/// assert_eq!(length.get(), 69);
+/// assert_eq!(count.get(), 64);
 /// ```
 ///
 /// [module]: self
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Length {
+pub struct Count {
     value: usize,
 }
 
-impl TryFrom<usize> for Length {
-    type Error = Error;
-
-    fn try_from(value: usize) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl From<Length> for usize {
-    fn from(length: Length) -> Self {
-        length.get()
-    }
-}
-
-impl fmt::Display for Length {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.get().fmt(formatter)
-    }
-}
-
 #[cfg(feature = "serde")]
-impl Serialize for Length {
+impl Serialize for Count {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.get().serialize(serializer)
     }
 }
 
 #[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for Length {
+impl<'de> Deserialize<'de> for Count {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = usize::deserialize(deserializer)?;
 
@@ -141,25 +127,52 @@ impl<'de> Deserialize<'de> for Length {
     }
 }
 
-impl Default for Length {
+impl TryFrom<usize> for Count {
+    type Error = Error;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl From<Count> for usize {
+    fn from(count: Count) -> Self {
+        count.get()
+    }
+}
+
+impl From<Count> for Length {
+    fn from(count: Count) -> Self {
+        // SAFETY: `bytes.encoded()` is in the valid range for `Self`
+        unsafe { Self::new_unchecked(count.encoded()) }
+    }
+}
+
+impl fmt::Display for Count {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.get().fmt(formatter)
+    }
+}
+
+impl Default for Count {
     fn default() -> Self {
         Self::DEFAULT
     }
 }
 
-impl FromStr for Length {
+impl FromStr for Count {
     type Err = ParseError;
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         let value = string.parse()?;
 
-        let length = Self::new(value)?;
+        let count = Self::new(value)?;
 
-        Ok(length)
+        Ok(count)
     }
 }
 
-impl Length {
+impl Count {
     /// Constructs [`Self`] if the provided value is in the valid range.
     ///
     /// # Errors
@@ -204,6 +217,11 @@ impl Length {
     /// Consumes [`Self`] and returns the contained value.
     pub const fn get(self) -> usize {
         self.value
+    }
+
+    /// Returns the encoded length corresponding to the byte count.
+    pub const fn encoded(self) -> usize {
+        encoding::length(self.get())
     }
 
     /// The minimum value of [`Self`].

@@ -1,7 +1,7 @@
 //! PKCE code verifiers.
 //!
 //! The [`Verifier<'_>`] type represents PKCE code verifiers, which are strings
-//! that consist of valid characters (see [`chars`]) and have certain lengths
+//! that consist of valid characters (see [`string`]) and have certain lengths
 //! (see [`length`]).
 //!
 //! # Examples
@@ -22,12 +22,12 @@
 //! Generating verifiers from random bytes:
 //!
 //! ```
-//! use pkce_std::{length::Bytes, verifier::Verifier};
+//! use pkce_std::{count::Count, verifier::Verifier};
 //!
-//! let bytes = Bytes::default();
+//! let count = Count::default();
 //!
-//! let verifier = Verifier::generate_encode(bytes);
-//! let other = Verifier::generate_encode(bytes);
+//! let verifier = Verifier::generate_encode(count);
+//! let other = Verifier::generate_encode(count);
 //!
 //! assert_ne!(verifier, other);
 //! ```
@@ -40,64 +40,62 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+use const_macros::{const_map_err, const_none, const_ok, const_try};
 use constant_time_eq::constant_time_eq;
 
+#[cfg(feature = "static")]
+use into_static::IntoStatic;
+
+#[cfg(feature = "diagnostics")]
 use miette::Diagnostic;
 
 #[cfg(feature = "serde")]
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 use thiserror::Error;
 
 use crate::{
     challenge::Challenge,
-    chars, encoding, generate,
-    length::{self, Bytes, BytesError, Length},
+    check::string::{self, const_check_str},
+    count::{self, Count},
+    encoding, generate,
+    length::{self, Length},
     method::Method,
 };
 
-/// Represents sources of errors that can occur when constructing verifiers.
-#[derive(Debug, Error, Diagnostic)]
-#[error(transparent)]
-#[diagnostic(transparent)]
-pub enum ErrorSource {
-    /// Invalid length encountered.
-    Length(#[from] length::Error),
-    /// Invalid characters found.
-    Chars(#[from] chars::Error),
-}
+/// Represents the error message for invalid verifiers.
+pub const ERROR: &str = "invalid verifier; check the length and characters";
 
 /// Represents errors that can occur when constructing verifiers.
 ///
 /// There are two cases when constructing can fail:
 ///
 /// - [`Length::check`] fails, which means that the length of the string is invalid;
-/// - [`chars::check`] fails, which means the string contains invalid characters.
-#[derive(Debug, Error, Diagnostic)]
-#[error("check failed")]
-#[diagnostic(code(pkce_std::code), help("make sure the code is valid"))]
-pub struct Error {
-    /// The source of this error.
-    #[source]
-    #[diagnostic_source]
-    pub source: ErrorSource,
-}
+/// - [`string::check`] fails, which means the string contains invalid characters.
+#[derive(Debug, Error)]
+#[cfg_attr(feature = "diagnostics", derive(Diagnostic))]
+pub enum Error {
+    /// Invalid verifier length.
+    #[error("invalid verifier length")]
+    #[cfg_attr(
+        feature = "diagnostics",
+        diagnostic(
+            code(pkce_std::verifier::length),
+            help("check the length of the verifier")
+        )
+    )]
+    Length(#[from] length::Error),
 
-impl Error {
-    /// Constructs [`Self`].
-    pub const fn new(source: ErrorSource) -> Self {
-        Self { source }
-    }
-
-    /// Constructs [`Self`] from [`length::Error`].
-    pub fn length(error: length::Error) -> Self {
-        Self::new(error.into())
-    }
-
-    /// Constructs [`Self`] from [`chars::Error`].
-    pub fn chars(error: chars::Error) -> Self {
-        Self::new(error.into())
-    }
+    /// Invalid character(s) in verifier.
+    #[error("verifier contains invalid character(s)")]
+    #[cfg_attr(
+        feature = "diagnostics",
+        diagnostic(
+            code(pkce_std::verifier::check),
+            help("make sure the verifier is composed of valid characters only")
+        )
+    )]
+    String(#[from] string::Error),
 }
 
 /// Represents PKCE code verifiers.
@@ -130,7 +128,7 @@ pub struct Verifier<'v> {
 #[cfg(feature = "serde")]
 impl Serialize for Verifier<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.as_str().serialize(serializer)
+        self.get().serialize(serializer)
     }
 }
 
@@ -145,26 +143,26 @@ impl<'de> Deserialize<'de> for Verifier<'_> {
 
 impl fmt::Display for Verifier<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.as_str().fmt(formatter)
+        self.get().fmt(formatter)
     }
 }
 
 impl Verifier<'_> {
     /// Returns the borrowed string.
-    pub fn as_str(&self) -> &str {
+    pub fn get(&self) -> &str {
         self.value.as_ref()
     }
 }
 
 impl AsRef<str> for Verifier<'_> {
     fn as_ref(&self) -> &str {
-        self.as_str()
+        self.get()
     }
 }
 
 impl PartialEq for Verifier<'_> {
     fn eq(&self, other: &Self) -> bool {
-        constant_time_eq(self.as_str().as_bytes(), other.as_str().as_bytes())
+        constant_time_eq(self.get().as_bytes(), other.get().as_bytes())
     }
 }
 
@@ -172,7 +170,7 @@ impl Eq for Verifier<'_> {}
 
 impl Hash for Verifier<'_> {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.as_str().hash(hasher);
+        self.get().hash(hasher);
     }
 }
 
@@ -190,7 +188,7 @@ impl Verifier<'_> {
     }
 
     /// Generates `count` random bytes length and encodes them into [`Self`].
-    pub fn generate_encode(count: Bytes) -> Self {
+    pub fn generate_encode(count: Count) -> Self {
         // SAFETY: `generate::bytes(count)` creates valid values for `Self::encode_unchecked`,
         // meaning that their length is exactly `count`.
         unsafe { Self::encode_unchecked(generate::bytes(count)) }
@@ -198,7 +196,7 @@ impl Verifier<'_> {
 
     /// Generates random bytes of default length and encodes them into [`Self`].
     pub fn generate_encode_default() -> Self {
-        Self::generate_encode(Bytes::default())
+        Self::generate_encode(Count::default())
     }
 }
 
@@ -286,28 +284,96 @@ impl<'v> Verifier<'v> {
         unsafe { Self::new_unchecked(Cow::Owned(value)) }
     }
 
-    /// Checks if the given value is valid for [`Self`].
+    /// Similar to [`borrowed`], but can be used in `const` contexts.
+    ///
+    /// # Note
+    ///
+    /// One may need to increase the recursion limit when using longer strings.
+    ///
+    /// This is done via applying the `recursion_limit` attribute to the crate:
+    ///
+    /// ```
+    /// #![recursion_limit = "256"]
+    /// ```
     ///
     /// # Errors
     ///
-    /// Returns [`struct@Error`] if the value is invalid, which means either:
+    /// See [`const_check_str`] for more information.
+    ///
+    /// [`borrowed`]: Self::borrowed
+    /// [`const_check_str`]: Self::const_check_str
+    pub const fn const_borrowed(value: &'v str) -> Result<Self, Error> {
+        const_try!(Self::const_check_str(value));
+
+        // SAFETY: `value` is valid for `Self` here
+        Ok(unsafe { Self::borrowed_unchecked(value) })
+    }
+
+    /// Similar to [`const_borrowed`], but errors are discarded.
+    ///
+    /// [`const_borrowed`]: Self::const_borrowed
+    pub const fn const_borrowed_ok(value: &'v str) -> Option<Self> {
+        const_none!(const_ok!(Self::const_check_str(value)));
+
+        // SAFETY: `value` is valid for `Self` here
+        Some(unsafe { Self::borrowed_unchecked(value) })
+    }
+
+    /// Constantly checks if the given string is valid for [`Self`].
+    ///
+    /// # Note
+    ///
+    /// One may need to increase the recursion limit when checking longer strings.
+    ///
+    /// This is done via applying the `recursion_limit` attribute to the crate:
+    ///
+    /// ```
+    /// #![recursion_limit = "256"]
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`enum@Error`] if the string is invalid, which means either:
     ///
     /// - the length of the string is invalid (see [`Length::check`]);
-    /// - the string contains invalid characters (see [`chars::check`]).
+    /// - the string contains invalid character(s) (see [`string::check`]).
+    pub const fn const_check_str(string: &str) -> Result<(), Error> {
+        const_try!(const_map_err!(Length::check(string.len()) => Error::Length));
+
+        const_try!(const_map_err!(const_check_str(string) => Error::String));
+
+        Ok(())
+    }
+
+    /// Checks if the given string is valid for [`Self`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`enum@Error`] if the string is invalid, which means either:
+    ///
+    /// - the length of the string is invalid (see [`Length::check`]);
+    /// - the string contains invalid character(s) (see [`string::check`]).
+    pub fn check_str(string: &str) -> Result<(), Error> {
+        Length::check(string.len())?;
+
+        string::check_str(string)?;
+
+        Ok(())
+    }
+
+    /// Similar to [`check_str`], except it is generic over [`AsRef<str>`].
+    ///
+    /// # Errors
+    ///
+    /// Any [`enum@Error`] returned by [`check_str`] is propagated.
+    ///
+    /// [`check_str`]: Self::check_str
     pub fn check<S: AsRef<str>>(value: S) -> Result<(), Error> {
-        fn check_inner(string: &str) -> Result<(), Error> {
-            Length::check(string.len()).map_err(Error::length)?;
-
-            chars::check(string).map_err(Error::chars)?;
-
-            Ok(())
-        }
-
-        check_inner(value.as_ref())
+        Self::check_str(value.as_ref())
     }
 
     /// Consumes [`Self`] and returns the contained string.
-    pub fn get(self) -> Cow<'v, str> {
+    pub fn take(self) -> Cow<'v, str> {
         self.value
     }
 }
@@ -317,9 +383,9 @@ impl Verifier<'_> {
     ///
     /// # Errors
     ///
-    /// Returns [`BytesError`] if the length of `bytes` is invalid.
-    pub fn encode<B: AsRef<[u8]>>(bytes: B) -> Result<Self, BytesError> {
-        Bytes::check(bytes.as_ref().len())?;
+    /// Returns [`count::Error`] if the length of `bytes` is invalid.
+    pub fn encode<B: AsRef<[u8]>>(bytes: B) -> Result<Self, count::Error> {
+        Count::check(bytes.as_ref().len())?;
 
         // SAFETY: `bytes` has length in the valid range for `Self::encode_unchecked`
         Ok(unsafe { Self::encode_unchecked(bytes) })
@@ -331,7 +397,7 @@ impl Verifier<'_> {
     ///
     /// The caller must ensure that `bytes` has valid length.
     ///
-    /// The `bytes` can be checked using [`Bytes::check`] on its length.
+    /// The `bytes` can be checked using [`Count::check`] on its length.
     pub unsafe fn encode_unchecked<B: AsRef<[u8]>>(bytes: B) -> Self {
         let string = encoding::encode(bytes);
 
@@ -341,13 +407,24 @@ impl Verifier<'_> {
     }
 }
 
-/// Represents owned [`Verifier`] values.
-pub type Owned = Verifier<'static>;
+/// Constructs [`Verifier`] from `value`, panicking if it is invalid.
+#[macro_export]
+macro_rules! const_borrowed_verifier {
+    ($value: expr) => {
+        $crate::verifier::Verifier::const_borrowed_ok($value).expect($crate::verifier::ERROR)
+    };
+}
 
-impl Verifier<'_> {
-    /// Consumes [`Self`] and returns [`Owned`] (enforces the contained value to be owned).
-    pub fn into_owned(self) -> Owned {
-        // SAFETY: `self` is valid, therefore we do not need to check again
-        unsafe { Owned::owned_unchecked(self.get().into_owned()) }
+/// An alias for [`Verifier<'static>`].
+#[cfg(feature = "static")]
+pub type StaticVerifier = Verifier<'static>;
+
+#[cfg(feature = "static")]
+impl IntoStatic for Verifier<'_> {
+    type Static = StaticVerifier;
+
+    fn into_static(self) -> Self::Static {
+        // SAFETY: calling `into_static` does not change `value` validity
+        unsafe { Self::Static::new_unchecked(self.value.into_static()) }
     }
 }

@@ -26,11 +26,11 @@
 
 use std::borrow::Cow;
 
+#[cfg(feature = "static")]
+use into_static::IntoStatic;
+
 use crate::{
-    challenge::Challenge,
-    length::{Bytes, Length},
-    method::Method,
-    verifier::Verifier,
+    challenge::Challenge, count::Count, length::Length, method::Method, verifier::Verifier,
 };
 
 /// Represents coupled [`Verifier`] and [`Challenge`] pairs.
@@ -61,7 +61,7 @@ impl<'c> Code<'c> {
     pub fn into_parts(self) -> Parts<'c> {
         let (secret, method) = self.challenge.into_parts();
 
-        (self.verifier.get(), secret, method)
+        (self.verifier.take(), secret, method)
     }
 }
 
@@ -85,7 +85,7 @@ impl Code<'_> {
     }
 
     /// Generates [`Self`] using the given method and bytes count.
-    pub fn generate_encode_using(method: Method, count: Bytes) -> Self {
+    pub fn generate_encode_using(method: Method, count: Count) -> Self {
         let verifier = Verifier::generate_encode(count);
         let challenge = verifier.challenge_using(method);
 
@@ -93,23 +93,26 @@ impl Code<'_> {
     }
 
     /// Generates [`Self`] using the default method and the given bytes count.
-    pub fn generate_encode(count: Bytes) -> Self {
+    pub fn generate_encode(count: Count) -> Self {
         Self::generate_encode_using(Method::default(), count)
     }
 
     /// Generates [`Self`] using the default method and bytes count.
     pub fn generate_encode_default() -> Self {
-        Self::generate_encode(Bytes::default())
+        Self::generate_encode(Count::default())
     }
 }
 
-/// Represents owned [`Code`] values.
-pub type Owned = Code<'static>;
+/// An alias for [`Code<'static>`].
+#[cfg(feature = "static")]
+pub type StaticCode = Code<'static>;
 
-impl Code<'_> {
-    /// Consumes [`Self`] and returns [`Owned`] (enforces the contained values to be owned).
-    pub fn into_owned(self) -> Owned {
-        Owned::new(self.verifier.into_owned(), self.challenge)
+#[cfg(feature = "static")]
+impl IntoStatic for Code<'_> {
+    type Static = StaticCode;
+
+    fn into_static(self) -> Self::Static {
+        Self::Static::new(self.verifier.into_static(), self.challenge)
     }
 }
 

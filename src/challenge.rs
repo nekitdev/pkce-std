@@ -15,7 +15,7 @@ use std::fmt;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::{encoding::encode, hash::hash, method::Method, verifier::Verifier};
+use crate::{encoding::encode, hash::sha256, method::Method, verifier::Verifier};
 
 /// Represents PKCE code challenges.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -36,7 +36,7 @@ impl fmt::Display for Challenge {
 
 impl Challenge {
     /// Returns the borrowed secret.
-    pub fn secret(&self) -> &str {
+    pub const fn secret(&self) -> &str {
         self.secret.as_str()
     }
 
@@ -66,11 +66,11 @@ impl Challenge {
 impl Challenge {
     /// Creates code challenges from the given verifier using the given method.
     pub fn create_using(method: Method, verifier: &Verifier<'_>) -> Self {
-        let string = verifier.as_str();
+        let string = verifier.get();
 
         let secret = match method {
             Method::Plain => string.to_owned(),
-            Method::Sha256 => encode(hash(string)),
+            Method::Sha256 => encode(sha256(string)),
         };
 
         Self::new(secret, method)

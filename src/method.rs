@@ -20,6 +20,7 @@
 
 use std::str::FromStr;
 
+#[cfg(feature = "diagnostics")]
 use miette::Diagnostic;
 
 #[cfg(feature = "serde")]
@@ -27,12 +28,17 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use thiserror::Error;
 
-use crate::macros::errors;
-
 /// Represents errors that can occur when parsing PKCE methods.
-#[derive(Debug, Error, Diagnostic)]
+#[derive(Debug, Error)]
 #[error("unknown method `{unknown}`")]
-#[diagnostic(code(pkce_std::method), help("make sure the method is supported"))]
+#[cfg_attr(
+    feature = "diagnostics",
+    derive(Diagnostic),
+    diagnostic(
+        code(pkce_std::method),
+        help("expected either `{PLAIN}` (discouraged) or `{SHA256}` (recommended)")
+    )
+)]
 pub struct Error {
     /// The unknown method.
     pub unknown: String,
@@ -77,20 +83,16 @@ impl<'de> Deserialize<'de> for Method {
     }
 }
 
+type StaticStr = &'static str;
+
 impl Method {
     /// Returns the static string representation of the method.
-    pub const fn static_str(&self) -> &'static str {
+    pub const fn static_str(&self) -> StaticStr {
         match self {
             Self::Plain => PLAIN,
             Self::Sha256 => SHA256,
         }
     }
-}
-
-errors! {
-    Type = Error,
-    Hack = $,
-    error => new(string => to_owned),
 }
 
 impl FromStr for Method {
@@ -100,7 +102,7 @@ impl FromStr for Method {
         match string {
             PLAIN => Ok(Self::Plain),
             SHA256 => Ok(Self::Sha256),
-            _ => Err(error!(string)),
+            _ => Err(Self::Err::new(string.to_owned())),
         }
     }
 }
