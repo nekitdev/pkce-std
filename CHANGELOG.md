@@ -2,6 +2,13 @@
 
 <!-- changelogging: start -->
 
+## [0.2.0](https://github.com/nekitdev/pkce-std/tree/v0.2.0) (2025-05-22)
+
+### Changes
+
+- The architecture was significantly changed.
+  Please refer to the [docs](https://docs.rs/pkce-std) for more information.
+
 ## [0.1.3](https://github.com/nekitdev/pkce-std/tree/v0.1.3) (2025-02-26)
 
 No significant changes.
